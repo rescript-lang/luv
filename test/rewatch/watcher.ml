@@ -34,6 +34,15 @@ let await loop message ready =
   close_handle loop timeout;
   check ("timed out: " ^ message) (ready ())
 
+let run_for loop milliseconds =
+  let elapsed = ref false in
+  let timer = ok "delay timer init" (Luv.Timer.init ~loop ()) in
+  ok "delay timer start" (Luv.Timer.start timer milliseconds (fun () ->
+    elapsed := true;
+    Luv.Loop.stop loop));
+  await loop "delay timer" (fun () -> !elapsed);
+  close_handle loop timer
+
 let with_loop f =
   let loop = ok "loop init" (Luv.Loop.init ()) in
   f loop;
@@ -67,6 +76,9 @@ let watch loop directory events =
     events := ok "watch callback" result :: !events;
     Luv.Loop.stop loop);
   check "watch is active" (Luv.Handle.is_active handle);
+  (* macOS starts the FSEvents stream on another thread. As in libuv's own
+     filesystem-event tests, let the stream start before changing files. *)
+  run_for loop 150;
   handle
 
 let close_watch loop handle =
@@ -140,6 +152,9 @@ let watcher_refresh () =
     let first_handle = watch loop first first_events in
     let second_handle = watch loop second second_events in
     write_file (Filename.concat second "queued.res") "queued\n";
+    (* Let the OS batch reach libuv's pending queue without dispatching the
+       OCaml callback, so closing the first handle pumps the queued event. *)
+    Luv.Time.sleep 150;
     (* Reconciliation pumps NOWAIT while closing obsolete handles. Events on
        handles being kept must survive that cleanup. *)
     close_watch loop first_handle;

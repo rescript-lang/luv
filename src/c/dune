@@ -88,6 +88,12 @@ let () = Jbuild_plugin.V1.send @@ {|
      case \"$architecture:$c_compiler\" in
        arm64:*musl*) extra_cflags=-mno-outline-atomics ;;
      esac
+     case \"$c_compiler\" in
+       *musl*)
+         # Debian's musl-gcc omits the system Linux kernel headers.
+         multiarch=`$c_compiler -print-multiarch`
+         extra_cflags=\"$extra_cflags -idirafter /usr/include -idirafter /usr/include/$multiarch\" ;;
+     esac
      sh configure --host `ocamlc -config | awk '/^host:/ {print $NF}'` \
        'CC=%{cc}' CFLAGS=\"-DNDEBUG $extra_cflags\" --silent --enable-silent-rules")
    (bash
@@ -107,7 +113,7 @@ let () = Jbuild_plugin.V1.send @@ {|
  (targets extra_libs.sexp)
  (action (ignore-outputs (bash "\
    if ocamlc -config | grep mingw; then \
-     echo '(-ldbghelp -liphlpapi -lole32 -lpsapi -luserenv)' > extra_libs.sexp; \
+     echo '(-ldbghelp -liphlpapi -lole32 -lpsapi -lsynchronization -luserenv)' > extra_libs.sexp; \
    else \
      echo '()' > extra_libs.sexp; \
    fi"))))
