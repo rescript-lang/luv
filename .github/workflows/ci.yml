@@ -5,17 +5,23 @@ jobs:
   opam:
     strategy:
       matrix:
-        os:
-          - ubuntu-latest
-        ocaml:
-          - 5
-          - 4
-          - 4.03.x
         include:
+          - os: ubuntu-latest
+            ocaml: 5
+          - os: ubuntu-latest
+            ocaml: 4
+          - os: ubuntu-latest
+            ocaml: 4.03.x
           - os: macos-latest
             ocaml: 4
           - os: windows-latest
             ocaml: 4
+          - os: ubuntu-24.04
+            ocaml: ocaml-variants.5.5.1+options,ocaml-option-static
+            static: true
+          - os: ubuntu-24.04-arm
+            ocaml: ocaml-variants.5.5.1+options,ocaml-option-static
+            static: true
       fail-fast: false
     runs-on: ${{ matrix.os }}
 
@@ -30,27 +36,12 @@ jobs:
 
       - run: opam install -y --deps-only .
       - run: opam exec -- dune build -p luv
-
-  static-linux:
-    strategy:
-      matrix:
-        os:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - uses: ocaml/setup-ocaml@v3
-        with:
-          ocaml-compiler: ocaml-variants.5.5.1+options,ocaml-option-static
-      - run: opam pin add --yes --no-action --kind=path luv.0.5.14 .
-      - run: opam install --yes luv ocamlfind
+        if: ${{ !matrix.static }}
       - name: Link and run a static executable
+        if: matrix.static
         run: |
+          opam pin add --yes --no-action --kind=path luv.0.5.14 .
+          opam install --yes luv ocamlfind
           opam exec -- ocamlfind ocamlopt -thread -package luv -linkpkg \
             -ccopt -static -o hello_world example/hello_world.ml
           file hello_world | grep 'statically linked'
