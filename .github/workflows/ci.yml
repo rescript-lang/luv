@@ -12,6 +12,9 @@ jobs:
             ocaml: 4
           - os: ubuntu-latest
             ocaml: 4.03.x
+            opam-repositories: |
+              default: https://opam.ocaml.org
+              archive: git+https://github.com/ocaml/opam-repository-archive.git
           - os: macos-latest
             ocaml: 4
           - os: windows-latest
@@ -33,6 +36,7 @@ jobs:
       - uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: ${{ matrix.ocaml }}
+          opam-repositories: "${{ matrix.opam-repositories || 'default: https://opam.ocaml.org' }}"
 
       - run: opam install -y --deps-only .
       - run: opam exec -- dune build -p luv
