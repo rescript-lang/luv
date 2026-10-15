@@ -1,0 +1,3 @@
+(test
+ (name watcher)
+ (libraries luv unix))

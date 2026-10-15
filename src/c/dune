@@ -136,7 +136,8 @@ let () = Jbuild_plugin.V1.send @@ {|
 ;   https://github.com/avsm/ocaml-yaml/blob/master/types/stubgen/jbuild#L20
 (rule
  (targets generate_types_step_2.exe)
- (deps (:c generate_types_step_2.c) helpers.h shims.h)
+ (deps (:c generate_types_step_2.c) helpers.h shims.h
+  |}^ (if install_h then "uv.h (glob_files uv/*.h)" else "") ^{|)
  (action (bash "\
   if [ '%{ocaml-config:ccomp_type}' = 'msvc' ]; then \
     %{cc} %{c} \
