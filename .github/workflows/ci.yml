@@ -31,6 +31,31 @@ jobs:
       - run: opam install -y --deps-only .
       - run: opam exec -- dune build -p luv
 
+  static-linux:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ocaml-variants.5.5.1+options,ocaml-option-static
+      - run: opam pin add --yes --no-action --kind=path luv.0.5.14 .
+      - run: opam install --yes luv ocamlfind
+      - name: Link and run a static executable
+        run: |
+          opam exec -- ocamlfind ocamlopt -thread -package luv -linkpkg \
+            -ccopt -static -o hello_world example/hello_world.ml
+          file hello_world | grep 'statically linked'
+          ./hello_world
+
   old-libuv:
     strategy:
       fail-fast: false
