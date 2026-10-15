@@ -476,6 +476,13 @@ struct
         (void @-> returning string)
   end
 
+  module File =
+  struct
+    let statfs_spare =
+      foreign "luv_statfs_spare"
+        (ptr Types.File.Statfs.t @-> int @-> returning uint64_t)
+  end
+
   module Loop =
   struct
     let t = Types.Loop.t

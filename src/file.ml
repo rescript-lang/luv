@@ -312,8 +312,9 @@ struct
   let from_request request =
     let module C_statfs = C.Types.File.Statfs in
     let c_statfs =
-      Ctypes.(!@ (from_voidp C_statfs.t (C.Blocking.File.get_ptr request))) in
-    let field f = Ctypes.getf c_statfs f in
+      Ctypes.from_voidp C_statfs.t (C.Blocking.File.get_ptr request) in
+    let field f = Ctypes.getf Ctypes.(!@ c_statfs) f in
+    let spare = C.Functions.File.statfs_spare c_statfs in
     {
       type_ = field C_statfs.f_type;
       bsize = field C_statfs.f_bsize;
@@ -322,12 +323,7 @@ struct
       bavail = field C_statfs.f_bavail;
       files = field C_statfs.f_files;
       ffree = field C_statfs.f_ffree;
-      f_spare =
-        let array = field C_statfs.f_spare in
-        Ctypes.CArray.get array 0,
-        Ctypes.CArray.get array 1,
-        Ctypes.CArray.get array 2,
-        Ctypes.CArray.get array 3
+      f_spare = spare 0, spare 1, spare 2, spare 3
     }
 end
 

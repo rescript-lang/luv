@@ -529,7 +529,6 @@ struct
       let f_bavail = field t "f_bavail" uint64_t
       let f_files = field t "f_files" uint64_t
       let f_ffree = field t "f_ffree" uint64_t
-      let f_spare = field t "f_spare" (array 4 uint64_t)
       let () = seal t
     end
 
