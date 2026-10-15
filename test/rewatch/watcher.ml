@@ -80,6 +80,7 @@ let watch loop directory events =
   (* macOS starts the FSEvents stream on another thread. As in libuv's own
      filesystem-event tests, let the stream start before changing files. *)
   run_for loop 150;
+  events := [];
   handle
 
 let close_watch loop handle =
