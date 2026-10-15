@@ -312,9 +312,8 @@ struct
   let from_request request =
     let module C_statfs = C.Types.File.Statfs in
     let c_statfs =
-      Ctypes.from_voidp C_statfs.t (C.Blocking.File.get_ptr request) in
-    let field f = Ctypes.getf Ctypes.(!@ c_statfs) f in
-    let spare = C.Functions.File.statfs_spare c_statfs in
+      Ctypes.(!@ (from_voidp C_statfs.t (C.Blocking.File.get_ptr request))) in
+    let field f = Ctypes.getf c_statfs f in
     {
       type_ = field C_statfs.f_type;
       bsize = field C_statfs.f_bsize;
@@ -323,7 +322,12 @@ struct
       bavail = field C_statfs.f_bavail;
       files = field C_statfs.f_files;
       ffree = field C_statfs.f_ffree;
-      f_spare = spare 0, spare 1, spare 2, spare 3
+      (* libuv leaves these reserved fields uninitialized, and reduced their
+         count from four to three in 1.52. Keep the public tuple without
+         reading unspecified memory or running past the C structure. *)
+      f_spare =
+        let zero = Unsigned.UInt64.zero in
+        zero, zero, zero, zero
     }
 end
 

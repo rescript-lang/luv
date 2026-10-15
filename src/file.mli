@@ -593,7 +593,7 @@ sig
       * Unsigned.UInt64.t
       * Unsigned.UInt64.t
       * Unsigned.UInt64.t;
-    (** Reserved values. With libuv 1.52 and later, the fourth value is zero. *)
+    (** Reserved values, always zero. *)
   }
 end
 

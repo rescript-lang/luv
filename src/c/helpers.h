@@ -37,16 +37,6 @@ typedef ADDRESS_FAMILY sa_family_t;
 
 
 
-// libuv 1.52 repurposed a reserved statfs slot as f_frsize. Preserve Luv's
-// four reserved values without reading beyond the remaining three C slots.
-static inline uint64_t luv_statfs_spare(const uv_statfs_t *statfs, int index)
-{
-    size_t count = sizeof(statfs->f_spare) / sizeof(statfs->f_spare[0]);
-    return index >= 0 && (size_t)index < count ? statfs->f_spare[index] : 0;
-}
-
-
-
 // Callback trampolines.
 //
 // We need to pass C function pointers to libuv, but call OCaml callbacks.
