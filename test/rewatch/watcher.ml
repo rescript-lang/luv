@@ -58,7 +58,8 @@ let rec remove_tree path =
     Sys.remove path
 
 let with_directory f =
-  let directory = Filename.temp_file "luv-rewatch-" ".dir" in
+  let directory = Filename.temp_file ~temp_dir:(Sys.getcwd ())
+    "luv-rewatch-" ".dir" in
   Sys.remove directory;
   Unix.mkdir directory 0o700;
   match f directory with
@@ -86,13 +87,23 @@ let close_watch loop handle =
   check "watch is stopped" (not (Luv.Handle.is_active handle));
   close_handle loop handle
 
-let has_event events names kind =
+let has_event events names expected_kinds =
   List.exists (fun (filename, kinds) ->
     (* A missing filename tells rewatch to rescan the watched directory. *)
     (match filename with
      | None | Some "" -> true
      | Some filename -> List.mem (Filename.basename filename) names)
-    && List.mem kind kinds) !events
+    && List.exists (fun kind -> List.mem kind kinds) expected_kinds) !events
+
+let await_event loop message events names kinds =
+  match await loop message (fun () -> has_event events names kinds) with
+  | () -> ()
+  | exception Failure message ->
+    let received = List.map (fun (filename, kinds) ->
+      let filename = match filename with None -> "<no filename>" | Some name -> name in
+      let kinds = List.map (function `CHANGE -> "CHANGE" | `RENAME -> "RENAME") kinds in
+      filename ^ ":" ^ String.concat "," kinds) !events in
+    failwith (message ^ " (received: " ^ String.concat "; " received ^ ")")
 
 let directory_changes () =
   with_directory (fun directory -> with_loop (fun loop ->
@@ -101,20 +112,22 @@ let directory_changes () =
     write_file original "let value = 1\n";
     let events = ref [] in
     let handle = watch loop directory events in
-    let expect message names kind action =
+    let expect message names kinds action =
       ignore (Luv.Loop.run ~loop ~mode:`NOWAIT ());
       events := [];
       action ();
       Gc.full_major ();
-      await loop message (fun () -> has_event events names kind)
+      await_event loop message events names kinds
     in
-    expect "file modification" ["source.res"] `CHANGE
+    (* FSEvents can coalesce a recent creation with the first edit and report
+       RENAME. Rewatch rebuilds for either event kind. *)
+    expect "file modification" ["source.res"] [`CHANGE; `RENAME]
       (fun () -> write_file original "let value = 2\n");
-    expect "file creation" ["created.res"] `RENAME
+    expect "file creation" ["created.res"] [`RENAME]
       (fun () -> write_file (Filename.concat directory "created.res") "created\n");
-    expect "file rename" ["source.res"; "renamed.res"] `RENAME
+    expect "file rename" ["source.res"; "renamed.res"] [`RENAME]
       (fun () -> Sys.rename original renamed);
-    expect "file deletion" ["renamed.res"] `RENAME
+    expect "file deletion" ["renamed.res"] [`RENAME]
       (fun () -> Sys.remove renamed);
     close_watch loop handle))
 
@@ -158,14 +171,14 @@ let watcher_refresh () =
     (* Reconciliation pumps NOWAIT while closing obsolete handles. Events on
        handles being kept must survive that cleanup. *)
     close_watch loop first_handle;
-    await loop "event queued during handle cleanup"
-      (fun () -> has_event second_events ["queued.res"] `RENAME);
+    await_event loop "event queued during handle cleanup"
+      second_events ["queued.res"] [`RENAME];
     Unix.rmdir first;
     Unix.mkdir first 0o700;
     let replacement = watch loop first first_events in
     write_file (Filename.concat first "replacement.res") "replacement\n";
-    await loop "replacement directory is watched"
-      (fun () -> has_event first_events ["replacement.res"] `RENAME);
+    await_event loop "replacement directory is watched"
+      first_events ["replacement.res"] [`RENAME];
     close_watch loop replacement;
     close_watch loop second_handle))
 
@@ -176,11 +189,11 @@ let private_loops () =
       let first = watch first_loop directory first_events in
       let second = watch second_loop directory second_events in
       write_file (Filename.concat directory "shared.res") "shared\n";
-      await first_loop "first private loop receives events"
-        (fun () -> has_event first_events ["shared.res"] `RENAME);
+      await_event first_loop "first private loop receives events"
+        first_events ["shared.res"] [`RENAME];
       check "running one loop does not dispatch the other" (!second_events = []);
-      await second_loop "second private loop receives events"
-        (fun () -> has_event second_events ["shared.res"] `RENAME);
+      await_event second_loop "second private loop receives events"
+        second_events ["shared.res"] [`RENAME];
       check "default loop remains idle" (not (Luv.Loop.alive (Luv.Loop.default ())));
       close_watch first_loop first;
       close_watch second_loop second)))
