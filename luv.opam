@@ -13,6 +13,7 @@ dev-repo: "git+https://github.com/aantron/luv.git"
 
 depends: [
   "base-unix" {build}
+  "conf-linux-libc-dev" {build & os = "linux"}
   "ctypes" {>= "0.14.0"}
   "dune" {>= "2.7.0"}
   "integers" {>= "0.3.0"}

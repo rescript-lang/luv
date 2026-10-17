@@ -37,15 +37,17 @@ jobs:
       - run: opam install -y --deps-only .
       - run: opam exec -- dune build -p luv
         if: ${{ !matrix.static }}
+      - run: opam exec -- dune runtest --profile release test/rewatch test/unit/pure test/unit/file
+        if: ${{ !matrix.static }}
       - name: Link and run a static executable
         if: matrix.static
         run: |
           opam pin add --yes --no-action --kind=path luv.0.5.14 .
           opam install --yes luv ocamlfind
-          opam exec -- ocamlfind ocamlopt -thread -package luv -linkpkg \
-            -ccopt -static -o hello_world example/hello_world.ml
-          file hello_world | grep 'statically linked'
-          ./hello_world
+          opam exec -- ocamlfind ocamlopt -thread -package luv,unix -linkpkg \
+            -ccopt -static -o watcher test/rewatch/watcher.ml
+          file watcher | grep 'statically linked'
+          ./watcher
 
   old-libuv:
     strategy:

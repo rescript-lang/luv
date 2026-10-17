@@ -593,6 +593,7 @@ sig
       * Unsigned.UInt64.t
       * Unsigned.UInt64.t
       * Unsigned.UInt64.t;
+    (** Reserved values, always zero. *)
   }
 end
 

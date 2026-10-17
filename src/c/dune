@@ -88,12 +88,19 @@ let () = Jbuild_plugin.V1.send @@ {|
      case \"$architecture:$c_compiler\" in
        arm64:*musl*) extra_cflags=-mno-outline-atomics ;;
      esac
+     case \"$c_compiler\" in
+       *musl*)
+         # Debian's musl-gcc omits the system Linux kernel headers.
+         multiarch=`$c_compiler -print-multiarch`
+         extra_cflags=\"$extra_cflags -idirafter /usr/include -idirafter /usr/include/$multiarch\" ;;
+     esac
      sh configure --host `ocamlc -config | awk '/^host:/ {print $NF}'` \
        'CC=%{cc}' CFLAGS=\"-DNDEBUG $extra_cflags\" --silent --enable-silent-rules")
-   (ignore-outputs (bash
+   (bash
     "$([ '%{os_type}' = Unix ] && echo %{make} || echo make) V=0 -j 4 \
       -o aclocal.m4 -o Makefile.in -o configure \
-      -o configure.status -o Makefile libuv.la"))
+      -o configure.status -o Makefile libuv.la > build.log 2>&1 || { \
+        cat build.log >&2; exit 1; }")
    (ignore-outputs (bash
     "sh libtool --silent --no-warnings --mode install cp libuv.la `pwd`"))))
   (bash "cp vendor/libuv/libuv.a .")
@@ -106,7 +113,7 @@ let () = Jbuild_plugin.V1.send @@ {|
  (targets extra_libs.sexp)
  (action (ignore-outputs (bash "\
    if ocamlc -config | grep mingw; then \
-     echo '(-ldbghelp -liphlpapi -lole32 -lpsapi -luserenv)' > extra_libs.sexp; \
+     echo '(-ldbghelp -liphlpapi -lole32 -lpsapi -lsynchronization -luserenv)' > extra_libs.sexp; \
    else \
      echo '()' > extra_libs.sexp; \
    fi"))))
@@ -136,7 +143,8 @@ let () = Jbuild_plugin.V1.send @@ {|
 ;   https://github.com/avsm/ocaml-yaml/blob/master/types/stubgen/jbuild#L20
 (rule
  (targets generate_types_step_2.exe)
- (deps (:c generate_types_step_2.c) helpers.h shims.h)
+ (deps (:c generate_types_step_2.c) helpers.h shims.h
+  |}^ (if install_h then "uv.h (glob_files uv/*.h)" else "") ^{|)
  (action (bash "\
   if [ '%{ocaml-config:ccomp_type}' = 'msvc' ]; then \
     %{cc} %{c} \

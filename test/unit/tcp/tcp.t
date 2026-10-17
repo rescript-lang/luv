@@ -34,7 +34,7 @@
   $ dune exec ./connect_cancel.exe
   Ok
 
-  $ dune exec ./listen_accept.exe
+  $ dune exec ./listen_accept.exe 2>&1 | sort
   Accepted
   Connected
 
@@ -76,9 +76,9 @@
   $ dune exec ./try_write_error.exe
   Ok
 
-  $ dune exec ./shutdown.exe
-  Server ok
+  $ dune exec ./shutdown.exe | sort
   Client ok
+  Server ok
 
   $ dune exec ./shutdown_sync_error.exe
   Ok

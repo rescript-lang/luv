@@ -322,12 +322,12 @@ struct
       bavail = field C_statfs.f_bavail;
       files = field C_statfs.f_files;
       ffree = field C_statfs.f_ffree;
+      (* libuv leaves these reserved fields uninitialized, and reduced their
+         count from four to three in 1.52. Keep the public tuple without
+         reading unspecified memory or running past the C structure. *)
       f_spare =
-        let array = field C_statfs.f_spare in
-        Ctypes.CArray.get array 0,
-        Ctypes.CArray.get array 1,
-        Ctypes.CArray.get array 2,
-        Ctypes.CArray.get array 3
+        let zero = Unsigned.UInt64.zero in
+        zero, zero, zero, zero
     }
 end
 
